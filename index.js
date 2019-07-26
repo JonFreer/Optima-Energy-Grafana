@@ -197,7 +197,7 @@ app.all(['/:query*/query','/query'], function (req, res) {
       if (target.data && target.data.operation == "sum") {
         getSumData(req.body.range, target, siteId).then(function (response) {
           name = ((target.data.name) ? target.data.name : "Sum")
-          if(target.data.norm){
+          if(target.data && target.data.norm){
             tsResult.push({ "target": name, "datapoints": normalizeData(response) })
           }else{
             tsResult.push({ "target": name, "datapoints": response })
@@ -210,7 +210,7 @@ app.all(['/:query*/query','/query'], function (req, res) {
         })
       } else {
         getFromOptima(req.body.range, target, siteId).then(function (response) {
-          if(target.data.norm){
+          if(target.data && target.data.norm){
             tsResult.push({ "target": target.target, "datapoints": normalizeData(response) })
           }else{
             tsResult.push({ "target": target.target, "datapoints": response })

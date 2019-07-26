@@ -31,7 +31,9 @@ const recursiveHttpGet = (i, data2, url) => new Promise((resolve, reject) => {
 //Update Site Info and Logger Info
 function getSiteJson() {
   recursiveHttpGet(1, [], 'https://'+subDomain+'.energycloud.com/api/v1/Site/?apiKey=' + apiKey + '&pageSize=100&orderBy=id&page=').then(function (r) {
+    console.log("Updated SiteJson")
     siteJson = r
+    
   })
 }
 
@@ -39,7 +41,9 @@ getSiteJson()
 
 function getLoggerJson() {
   recursiveHttpGet(1, [], 'https://'+subDomain+'.energycloud.com/api/v1/Logger/?apiKey=' + apiKey + '&pageSize=100&orderBy=id&page=').then(function (r) {
+    console.log("Updated loggerJson")
     loggerJson = r
+    
   })
 }
 
@@ -77,7 +81,6 @@ app.all('/:query*/search', function (req, res) {
   setCORSHeaders(res);
   var result = [];
   siteId = siteJson.find(item => item.code === req.params.query).id
-  console.log(siteId)
   r = _.filter(loggerJson, function (t) {
     return t.siteId === siteId;
   });
@@ -121,6 +124,17 @@ function getFromOptima(range, target, siteId) {
   })
 }
 
+//Calculates the normazlied values of a data set
+//{"operation":"norm"}
+function normalizeData(data) {
+      var values = data.map(x=>x[0]);
+      max = Math.max(...values);
+      min = Math.min(...values);
+      norm = data.map(x => [((x[0]-min)/(max-min)),x[1]])
+      return norm;
+}
+
+
 //Calculates the sum of multiple loggers, returns  a promise, example json below
 //{"operation":"sum","loggers":["ELEC - Lift 2","ELEC - Lift 3","ELEC - Lift 4","ELEC - Lift 6"]}
 function getSumData(range, target,siteId) {
@@ -133,12 +147,10 @@ function getSumData(range, target,siteId) {
     r = _.filter(loggerJson, function (t) {
       return t.siteId === siteId;
     });
-
   } else {
     console.log("loggerJson")
     r = loggerJson
   }
-
   return new Promise(function (resolve, reject) {
     for (t in targets) {
       id = r.find(item => item.reference === targets[t]).id
@@ -166,51 +178,17 @@ function formatData(res) {
   return formattedData
 }
 
-//gets and sends the query data
-app.all('/query', function (req, res) {
-  setCORSHeaders(res);
-  console.log(req.url);
-  console.log(req.body);
-  var tsResult = [];
-  _.each(req.body.targets, function (target) {
-    if (target.type === 'table') {
-      tsResult.push(table);
-    } else {
-      if (target.data && target.data.operation == "sum") {
-        getSumData(req.body.range, target, null).then(function (response) {
-          name = ((target.data.name) ? target.data.name : "Sum")
-          tsResult.push({ "target": name, "datapoints": response })
-          if (tsResult.length == req.body.targets.length) {
-            console.log("complete")
-            res.json(tsResult);
-            res.end();
-          }
-        })
-      } else {
-        getFromOptima(req.body.range, target,null).then(function (response) {
-          tsResult.push({ "target": target.target, "datapoints": response })
-          console.log(tsResult.length)
-          if (tsResult.length == req.body.targets.length) {
-            console.log("complete")
-            res.json(tsResult);
-            res.end();
-          }
-        })
-      }
-
-    }
-  });
-});
 
 //gets and sends the query data based on site
-app.all('/:query*/query', function (req, res) {
+app.all(['/:query*/query','/query'], function (req, res) {
   setCORSHeaders(res);
   console.log(req.url);
-  console.log(req.body);
-
+  if(req.params.query){ 
   //get the siteId from the siteCode
   siteId = siteJson.find(item => item.code === req.params.query).id
-
+  }else{
+    siteId = null;
+  }
   var tsResult = [];
   _.each(req.body.targets, function (target) {
     if (target.type === 'table') {
@@ -219,18 +197,26 @@ app.all('/:query*/query', function (req, res) {
       if (target.data && target.data.operation == "sum") {
         getSumData(req.body.range, target, siteId).then(function (response) {
           name = ((target.data.name) ? target.data.name : "Sum")
-          tsResult.push({ "target": name, "datapoints": response })
+          if(target.data.norm){
+            tsResult.push({ "target": name, "datapoints": normalizeData(response) })
+          }else{
+            tsResult.push({ "target": name, "datapoints": response })
+          }
           if (tsResult.length == req.body.targets.length) {
-            console.log("complete")
+            console.log("Sum Complete")
             res.json(tsResult);
             res.end();
           }
         })
       } else {
         getFromOptima(req.body.range, target, siteId).then(function (response) {
-          tsResult.push({ "target": target.target, "datapoints": response })
+          if(target.data.norm){
+            tsResult.push({ "target": target.target, "datapoints": normalizeData(response) })
+          }else{
+            tsResult.push({ "target": target.target, "datapoints": response })
+          }
           if (tsResult.length == req.body.targets.length) {
-            console.log("complete")
+            console.log("Complete")
             res.json(tsResult);
             res.end();
           }

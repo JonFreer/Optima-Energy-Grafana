@@ -40,6 +40,20 @@ The sum functionality allows you to add multiple data sets together and return a
 {"operation":"sum","loggers":["ELEC - Lift 2","ELEC - Lift 3","ELEC - Lift 4","ELEC - Lift 6"]}
 
 ```
+
+#### - Sub
+
+The sub functionality allows you to subtract multiple data sets and returns as a single set. 
+- Select one of the data sets as the initial metric
+- Click additional JSON data and enter ```{"operation":"sub","loggers":[]} ```. The loggers array should contain all the strings of the logger names. An example of this can be seen below
+
+```
+{"operation":"sub","loggers":["ELEC - Lift 2","ELEC - Lift 3","ELEC - Lift 4","ELEC - Lift 6"]}
+
+```
+
+In the above case, if the inital metric was "ELEC - Lift 1", the result would be ```Lift1 - (Lift2 + Lift3 + Lift4 + Lift6) ```
+
 #### - Norm
 
 Normalizes a data set between 0 and 1.
